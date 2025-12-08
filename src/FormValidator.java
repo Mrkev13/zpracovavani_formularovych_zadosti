@@ -1,9 +1,9 @@
 import java.util.concurrent.TimeUnit;
 
-public class Validator implements Runnable {
+class FormValidator implements Runnable {
     private final FormProcessingServer server;
 
-    public Validator(FormProcessingServer server) {
+    public FormValidator(FormProcessingServer server) {
         this.server = server;
     }
 

@@ -1,29 +1,49 @@
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import java.io.IOException;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class MetricsHandler implements HttpHandler {
 
-    private final FormProcessingServer server;
+    private final BlockingQueue<FormRequest> qIncoming;
+    private final BlockingQueue<FormRequest> qValidated;
+    private final BlockingQueue<FormRequest> qProcessed;
 
-    public MetricsHandler(FormProcessingServer server){
-        this.server = server;
+    private final AtomicLong accepted;
+    private final AtomicLong validated;
+    private final AtomicLong processed;
+    private final AtomicLong completed;
+
+    public MetricsHandler(BlockingQueue<FormRequest> qIncoming,
+                          BlockingQueue<FormRequest> qValidated,
+                          BlockingQueue<FormRequest> qProcessed,
+                          AtomicLong accepted,
+                          AtomicLong validated,
+                          AtomicLong processed,
+                          AtomicLong completed) {
+        this.qIncoming = qIncoming;
+        this.qValidated = qValidated;
+        this.qProcessed = qProcessed;
+        this.accepted = accepted;
+        this.validated = validated;
+        this.processed = processed;
+        this.completed = completed;
     }
 
     @Override
-    public void handle(HttpExchange ex){
-        try {
-            String resp =
-                    "accepted=" + server.accepted.get() + "\n" +
-                            "validated=" + server.validated.get() + "\n" +
-                            "processed=" + server.processed.get() + "\n" +
-                            "completed=" + server.completed.get() + "\n" +
-                            "queues: incoming=" + server.qIncoming.size() +
-                            ", validated=" + server.qValidated.size() +
-                            ", processed=" + server.qProcessed.size() + "\n";
+    public void handle(HttpExchange exchange) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        sb.append("accepted=").append(accepted.get()).append("\n");
+        sb.append("validated=").append(validated.get()).append("\n");
+        sb.append("processed=").append(processed.get()).append("\n");
+        sb.append("completed=").append(completed.get()).append("\n");
+        sb.append("queues: incoming=").append(qIncoming.size())
+                .append(", validated=").append(qValidated.size())
+                .append(", processed=").append(qProcessed.size()).append("\n");
 
-            ex.sendResponseHeaders(200, resp.getBytes().length);
-            ex.getResponseBody().write(resp.getBytes());
-            ex.getResponseBody().close();
-        } catch (Exception e){ e.printStackTrace(); }
+        byte[] bytes = sb.toString().getBytes();
+        exchange.sendResponseHeaders(200, bytes.length);
+        try(var os = exchange.getResponseBody()) { os.write(bytes); }
     }
 }
